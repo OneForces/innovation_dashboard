@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчёт PDF</title>
+    <style>
+        body { font-family: sans-serif; }
+        table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h2>📄 Отчёт по инновационной активности</h2>
+    <p>Общее количество записей: {{ count }}</p>
+
+    <table>
+        <tr>
+            <th>Регион</th><th>Год</th><th>Показатель</th><th>Значение</th>
+        </tr>
+        {% for row in data %}
+        <tr>
+            <td>{{ row.region }}</td>
+            <td>{{ row.year }}</td>
+            <td>{{ row.indicator_name }}</td>
+            <td>{{ row.value }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

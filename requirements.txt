@@ -1,0 +1,11 @@
+Django>=4.2,<5.0
+pandas>=2.2.0,<2.3
+plotly>=5.20.0,<6.0
+scikit-learn==1.4.2
+openpyxl==3.1.2
+pdfkit==1.0.0
+kaleido==0.2.1
+XlsxWriter==3.2.0
+Cython==0.29.36
+cmdstanpy==1.2.1
+prophet==1.1.5
