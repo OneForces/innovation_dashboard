@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Кастомный отчёт</title>
+    <style>
+        table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; }
+        img { max-width: 100%; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h2>📄 Кастомный отчёт</h2>
+
+    {% if chart_path %}
+      <h4>📈 График</h4>
+      <img src="file://{{ chart_path }}">
+    {% endif %}
+
+    {% if cluster_path %}
+      <h4>🧠 Кластеры</h4>
+      <img src="file://{{ cluster_path }}">
+    {% endif %}
+
+    {% if include_table %}
+    <h4>📋 Таблица</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Регион</th>
+                <th>Год</th>
+                <th>Показатель</th>
+                <th>Значение</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in data.itertuples %}
+            <tr>
+                <td>{{ row.region }}</td>
+                <td>{{ row.year }}</td>
+                <td>{{ row.indicator_name }}</td>
+                <td>{{ row.value }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</body>
+</html>

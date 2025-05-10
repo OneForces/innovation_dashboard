@@ -3,10 +3,31 @@
 {% block content %}
   <h3>📈 График инновационной активности</h3>
 
-  <form method="get" class="mb-3">
-    <input class="form-control mb-2" type="text" name="region" placeholder="Фильтр по региону">
+  <form method="get" class="mb-4 row row-cols-lg-auto g-3 align-items-center">
+  <div class="col">
+    <input class="form-control" type="text" name="region" placeholder="Регион" value="{{ request.GET.region }}">
+  </div>
+  <div class="col">
+    <select class="form-select" name="year">
+      <option value="">Все годы</option>
+      {% for y in years %}
+        <option value="{{ y }}" {% if request.GET.year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col">
+    <select class="form-select" name="indicator">
+      <option value="">Все показатели</option>
+      {% for i in indicators %}
+        <option value="{{ i }}" {% if request.GET.indicator == i %}selected{% endif %}>{{ i }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col">
     <button class="btn btn-primary" type="submit">Фильтровать</button>
+  </div>
   </form>
+
 
   {{ chart|safe }}
 {% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Прогноз{% endblock %}
+{% block content %}
+  <h3>📊 Прогноз инновационной активности (Prophet)</h3>
+<form method="get" class="row row-cols-lg-auto g-3 align-items-center mb-3">
+  <div class="col">
+    <select class="form-select" name="region">
+      <option value="">Все регионы (общий тренд)</option>
+      {% for region in regions %}
+        <option value="{{ region }}" {% if request.GET.region == region %}selected{% endif %}>{{ region }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col">
+    <select class="form-select" name="model">
+      <option value="prophet" {% if selected_model == "prophet" %}selected{% endif %}>Prophet</option>
+      <option value="arima" {% if selected_model == "arima" %}selected{% endif %}>ARIMA</option>
+    </select>
+  </div>
+
+  <div class="col">
+    <input class="form-control" type="number" name="periods" min="1" max="20" value="{{ request.GET.periods|default_if_none:5 }}" placeholder="Лет вперёд">
+  </div>
+
+  <div class="col">
+    <button class="btn btn-primary" type="submit">Построить прогноз</button>
+  </div>
+</form>
+  {{ chart|safe }}
+{% endblock %}

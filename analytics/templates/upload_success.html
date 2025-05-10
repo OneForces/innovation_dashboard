@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Успешная загрузка{% endblock %}
+{% block content %}
+  <h3>✅ Данные успешно загружены и обработаны</h3>
+  <a href="{% url 'chart' %}" class="btn btn-primary">Посмотреть график</a>
+  <h4>📝 Создать PDF-отчёт:</h4>
+<form method="get" action="{% url 'custom_export_pdf' %}">
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="chart" checked>
+    <label class="form-check-label">График</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="clusters" checked>
+    <label class="form-check-label">Кластеры</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="table" checked>
+    <label class="form-check-label">Таблица</label>
+  </div>
+  <button class="btn btn-dark mt-2">Создать PDF</button>
+</form>
+
+{% endblock %}

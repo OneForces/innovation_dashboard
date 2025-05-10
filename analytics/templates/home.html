@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}📊 Дашборд{% endblock %}
+{% block content %}
+  <h3>📊 Обзор инновационной активности</h3>
+
+  {% if message %}
+    <div class="alert alert-warning">{{ message }}</div>
+  {% else %}
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+          <strong>Регионов:</strong> {{ summary.region_count }}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+          <strong>Показателей:</strong> {{ summary.indicator_count }}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+          <strong>Годы:</strong> {{ summary.years|join:", " }}
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+          <strong>Максимум:</strong> {{ summary.max_value }}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+          <strong>Минимум:</strong> {{ summary.min_value }}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+          <strong>Среднее:</strong> {{ summary.mean_value|floatformat:2 }}
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      {{ chart|safe }}
+    </div>
+  {% endif %}
+{% endblock %}

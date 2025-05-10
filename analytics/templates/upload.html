@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Загрузка данных{% endblock %}
 {% block content %}
-  <h3>📂 Загрузка Excel-файла с инновационными данными</h3>
-  <form method="post" enctype="multipart/form-data">
+<div class="d-flex justify-content-center align-items-center flex-column" style="min-height: 60vh; text-align: center;">
+  <h3 class="mb-4">📂 Загрузка Excel-файла с инновационными данными</h3>
+
+  <form method="post" enctype="multipart/form-data" class="p-4 bg-light rounded-4 shadow-sm" style="min-width: 320px; max-width: 480px; width: 100%;">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn btn-success" type="submit">Загрузить</button>
+    <div class="mb-3">
+      {{ form.file.label_tag }}
+      {{ form.file }}
+    </div>
+    <button class="btn btn-success w-100" type="submit">🚀 Загрузить</button>
   </form>
+</div>
 {% endblock %}

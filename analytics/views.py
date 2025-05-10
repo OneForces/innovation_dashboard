@@ -16,10 +16,36 @@ from prophet import Prophet
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.cluster import KMeans
-
+from prophet.plot import plot_plotly
+from statsmodels.tsa.arima.model import ARIMA
 
 def home_view(request):
-    return redirect('upload_file')
+    data = RegionData.objects.all()
+    df = pd.DataFrame(list(data.values('region', 'year', 'value', 'indicator_name')))
+
+    if df.empty:
+        return render(request, 'home.html', {"message": "Нет данных для отображения"})
+
+    summary = {
+        "region_count": df["region"].nunique(),
+        "years": sorted(df["year"].unique()),
+        "indicator_count": df["indicator_name"].nunique(),
+        "max_value": df["value"].max(),
+        "min_value": df["value"].min(),
+        "mean_value": df["value"].mean(),
+    }
+
+    fig = px.bar(
+        df.groupby("year")["value"].mean().reset_index(),
+        x="year", y="value",
+        title="📊 Среднее значение по годам"
+    )
+    chart_html = fig.to_html(full_html=False)
+
+    return render(request, "home.html", {
+        "summary": summary,
+        "chart": chart_html,
+    })
 
 # 📥 Загрузка Excel
 def upload_file(request):
@@ -34,24 +60,49 @@ def upload_file(request):
         form = ExcelUploadForm()
     return render(request, 'upload.html', {'form': form})
 
+def upload_success_view(request):
+    return render(request, 'upload_success.html')
 
 # 📈 График по регионам
 def chart_view(request):
     region_filter = request.GET.get("region")
+    year_filter = request.GET.get("year")
+    indicator_filter = request.GET.get("indicator")
+
     queryset = RegionData.objects.all()
+
     if region_filter:
         queryset = queryset.filter(region__icontains=region_filter)
+    if year_filter:
+        queryset = queryset.filter(year=year_filter)
+    if indicator_filter:
+        queryset = queryset.filter(indicator_name__icontains=indicator_filter)
 
-    df = pd.DataFrame(list(queryset.values('region', 'year', 'value')))
+    df = pd.DataFrame(list(queryset.values('region', 'year', 'value', 'indicator_name')))
 
     if df.empty:
         chart_html = "<b>Нет данных для отображения</b>"
     else:
-        fig = px.line(df, x="year", y="value", color="region", markers=True,
-                      title="Динамика инновационной активности")
+        fig = px.line(
+            df,
+            x="year",
+            y="value",
+            color="region",
+            title="Динамика инновационной активности",
+            line_group="indicator_name",
+            markers=True
+        )
         chart_html = fig.to_html(full_html=False)
 
-    return render(request, "chart.html", {"chart": chart_html})
+    # Вытащим уникальные значения для фильтров
+    years = RegionData.objects.values_list('year', flat=True).distinct().order_by('year')
+    indicators = RegionData.objects.values_list('indicator_name', flat=True).distinct()
+
+    return render(request, "chart.html", {
+        "chart": chart_html,
+        "years": years,
+        "indicators": indicators,
+    })
 
 
 # 🔢 Линейная регрессия
@@ -146,26 +197,159 @@ def export_pdf_view(request):
 
     return HttpResponse(pdf, content_type='application/pdf')
 
+from prophet import Prophet
+from statsmodels.tsa.arima.model import ARIMA
+
 def forecast_view(request):
-    data = RegionData.objects.all()
-    df = pd.DataFrame(list(data.values('year', 'value')))
-    if df.empty or df.shape[0] < 3:
+    region_filter = request.GET.get("region")
+    model_choice = request.GET.get("model", "prophet")
+    try:
+        periods = int(request.GET.get("periods") or 5)
+    except ValueError:
+        periods = 5
+
+    queryset = RegionData.objects.all()
+    if region_filter:
+        queryset = queryset.filter(region__icontains=region_filter)
+
+    df = pd.DataFrame(list(queryset.values('year', 'value')))
+
+    if df.empty:
         return HttpResponse("Недостаточно данных для прогноза")
 
-    # Prophet требует колонки ds (дата) и y (значение)
-    df = df.rename(columns={'year': 'ds', 'value': 'y'})
-    df['ds'] = pd.to_datetime(df['ds'], format='%Y')
+    df = df.sort_values('year')
+    df['ds'] = pd.to_datetime(df['year'], format='%Y')
+    df['y'] = df['value']
+
+    regions = RegionData.objects.values_list('region', flat=True).distinct()
+
+    # 🔮 Prophet
+    if model_choice == "prophet":
+        model = Prophet(yearly_seasonality=True)
+        model.fit(df[['ds', 'y']])
+        future = model.make_future_dataframe(periods=periods, freq='Y')
+        forecast = model.predict(future)
+        fig = plot_plotly(model, forecast)
+        chart_html = pio.to_html(fig, full_html=False)
+
+    # 📉 ARIMA
+    elif model_choice == "arima":
+        df.set_index('ds', inplace=True)
+        model = ARIMA(df['y'], order=(1, 1, 1))
+        model_fit = model.fit()
+        forecast = model_fit.get_forecast(steps=periods)
+        forecast_index = pd.date_range(start=df.index[-1] + pd.DateOffset(years=1), periods=periods, freq='Y')
+
+        forecast_values = forecast.predicted_mean
+
+        forecast_df = pd.DataFrame({
+            "ds": forecast_index,
+            "y": forecast_values
+        })
+
+        combined_df = pd.concat([df.reset_index(), forecast_df])
+        combined_df["type"] = ["Исторические"] * len(df) + ["Прогноз"] * periods
+
+        fig = px.line(combined_df, x="ds", y="y", color="type", markers=True,
+                      title="Прогноз ARIMA")
+        chart_html = fig.to_html(full_html=False)
+
+    else:
+        return HttpResponse("❌ Неизвестная модель прогноза", status=400)
+
+    return render(request, 'forecast.html', {
+        'chart': chart_html,
+        'regions': regions,
+        'selected_model': model_choice,
+    })
+
+
+
+def export_forecast_pdf(request):
+    df = pd.DataFrame(RegionData.objects.all().values('year', 'value'))
+
+    if df.empty:
+        return HttpResponse("Нет данных для прогноза")
+
+    df['ds'] = pd.to_datetime(df['year'], format='%Y')
+    df['y'] = df['value']
 
     model = Prophet(yearly_seasonality=True)
-    model.fit(df)
+    model.fit(df[['ds', 'y']])
 
-    future = model.make_future_dataframe(periods=3, freq='Y')  # прогноз на 3 года
+    future = model.make_future_dataframe(periods=5, freq='Y')
     forecast = model.predict(future)
 
     fig = model.plot(forecast)
-    from matplotlib.backends.backend_agg import FigureCanvasAgg
-    from io import BytesIO
+    img_bytes = pio.to_image(fig, format="png")
 
-    buf = BytesIO()
-    FigureCanvasAgg(fig).print_png(buf)
-    return HttpResponse(buf.getvalue(), content_type='image/png')
+    # Сохраняем PNG временно
+    chart_path = "forecast_chart.png"
+    with open(chart_path, "wb") as f:
+        f.write(img_bytes)
+
+    html = render_to_string("forecast_report.html", {
+        "chart_path": os.path.abspath(chart_path),
+        "data": df,
+    })
+
+    pdf = pdfkit.from_string(html, False)
+    return HttpResponse(pdf, content_type="application/pdf")
+
+
+def export_forecast_png(request):
+    df = pd.DataFrame(RegionData.objects.all().values('year', 'value'))
+
+    if df.empty:
+        return HttpResponse("Нет данных для прогноза")
+
+    df['ds'] = pd.to_datetime(df['year'], format='%Y')
+    df['y'] = df['value']
+
+    model = Prophet(yearly_seasonality=True)
+    model.fit(df[['ds', 'y']])
+
+    future = model.make_future_dataframe(periods=5, freq='Y')
+    forecast = model.predict(future)
+
+    fig = model.plot(forecast)
+    img_bytes = pio.to_image(fig, format="png")
+    return HttpResponse(img_bytes, content_type="image/png")
+
+def custom_export_pdf_view(request):
+    include_table = request.GET.get("table") == "on"
+    include_chart = request.GET.get("chart") == "on"
+    include_clusters = request.GET.get("clusters") == "on"
+
+    data = RegionData.objects.all().values('region', 'year', 'indicator_name', 'value')
+    df = pd.DataFrame(list(data))
+
+    chart_path = None
+    cluster_path = None
+
+    if include_chart:
+        fig = px.line(df, x="year", y="value", color="region", title="График инновационной активности")
+        img_bytes = pio.to_image(fig, format="png")
+        chart_path = "chart_tmp.png"
+        with open(chart_path, "wb") as f:
+            f.write(img_bytes)
+
+    if include_clusters:
+        grouped = df.groupby("region")["value"].mean().reset_index()
+        kmeans = KMeans(n_clusters=3, random_state=42)
+        grouped["cluster"] = kmeans.fit_predict(grouped[["value"]])
+        fig2 = px.bar(grouped, x="region", y="value", color="cluster", title="Кластеры по инновациям")
+        img_bytes2 = pio.to_image(fig2, format="png")
+        cluster_path = "cluster_tmp.png"
+        with open(cluster_path, "wb") as f:
+            f.write(img_bytes2)
+
+    html = render_to_string("custom_report.html", {
+        "data": df,
+        "include_table": include_table,
+        "chart_path": os.path.abspath(chart_path) if chart_path else None,
+        "cluster_path": os.path.abspath(cluster_path) if cluster_path else None,
+    })
+
+    pdf = pdfkit.from_string(html, False)
+    return HttpResponse(pdf, content_type='application/pdf')
