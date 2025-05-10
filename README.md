@@ -22,7 +22,6 @@
 Или клонируй через Git:
 
 ```bash
-<<<<<<< HEAD
 git https://github.com/OneForces/innovation_dashboard
 =======
 git init
