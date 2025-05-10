@@ -22,7 +22,8 @@
 Или клонируй через Git:
 
 ```bash
-git clone https://github.com/username/innovation-dashboard.git
+git init // по желанию
+git clone https://github.com/OneForces/innovation_dashboard
 cd innovation-dashboard
 2. 🐍 Создай виртуальное окружение
 bash
